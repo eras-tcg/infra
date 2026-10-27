@@ -3,8 +3,8 @@
 # Runs on the self-hosted GitHub Actions runner (user github-runner, member of group docker).
 #
 # Usage: deploy.sh <service> <environment> <image>
-#   service:     drive-manager | users-service | eras-frontend
-#   environment: staging | prod
+#   service:     drive-manager | users-service | eras-frontend | eras-web
+#   environment: staging | prod | next (eras-web only, validates against the staging backend)
 #   image:       e.g. ghcr.io/eras-tcg/drive-manager:<sha>
 #
 # Container names, ports, network and env files match the old Jenkinsfiles, so nginx
@@ -18,6 +18,7 @@ health_timeout=120
 case "$env" in
   staging) suffix="-staging"; etc_suffix="-staging" ;;
   prod)    suffix="-prod";    etc_suffix="" ;;
+  next)    suffix="-next";    etc_suffix="-next" ;;
   *) echo "unknown environment: $env" >&2; exit 2 ;;
 esac
 name="${svc}${suffix}"
@@ -29,6 +30,7 @@ case "$svc:$env" in
   users-service:prod)    port=8082; container_port=8082 ;;
   eras-frontend:staging) port=3001; container_port=80 ;;
   eras-frontend:prod)    port=3000; container_port=80 ;;
+  eras-web:next)         port=3002; container_port=80 ;;
   *) echo "unknown service: $svc" >&2; exit 2 ;;
 esac
 
@@ -54,7 +56,7 @@ healthy() {
       code=$(curl -s -o /dev/null -m 10 -w '%{http_code}' -X POST -H 'Content-Type: application/json' \
         -d '{"username":"healthcheck_probe","password":"Xx1!xxxxxx"}' "http://127.0.0.1:${port}/api/auth/login" || true)
       [ "$code" = "401" ] ;;
-    eras-frontend)
+    eras-frontend|eras-web)
       code=$(curl -s -o /dev/null -m 10 -w '%{http_code}' "http://127.0.0.1:${port}/" || true)
       [ "$code" = "200" ] ;;
   esac
@@ -99,6 +101,9 @@ fi
 if [ "$svc" = "eras-frontend" ] && [ -n "${NGINX_VHOST_FILE:-}" ]; then
   vhost_name=$([ "$env" = "prod" ] && echo "erastcg.com" || echo "staging.erastcg.com")
   sudo /usr/local/sbin/eras-nginx-apply "$NGINX_VHOST_FILE" "$vhost_name"
+fi
+if [ "$svc" = "eras-web" ] && [ -n "${NGINX_VHOST_FILE:-}" ]; then
+  sudo /usr/local/sbin/eras-nginx-apply "$NGINX_VHOST_FILE" "next.erastcg.com"
 fi
 
 # Keep disk in check: drop unused images older than 14 days (running/rollback images stay).

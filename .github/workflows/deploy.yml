@@ -7,11 +7,11 @@ on:
   workflow_call:
     inputs:
       service:
-        description: drive-manager | users-service | eras-frontend
+        description: drive-manager | users-service | eras-frontend | eras-web
         required: true
         type: string
       environment:
-        description: staging | production
+        description: staging | production | next (eras-web only)
         required: true
         type: string
       image:
@@ -33,7 +33,7 @@ jobs:
     runs-on: [self-hosted, eras-vps]
     environment:
       name: ${{ inputs.environment }}
-      url: ${{ inputs.environment == 'production' && 'https://erastcg.com' || 'https://staging.erastcg.com' }}
+      url: ${{ inputs.environment == 'production' && 'https://erastcg.com' || inputs.environment == 'next' && 'https://next.erastcg.com' || 'https://staging.erastcg.com' }}
     concurrency:
       group: deploy-${{ inputs.service }}-${{ inputs.environment }}
       cancel-in-progress: false
@@ -59,7 +59,11 @@ jobs:
         env:
           NGINX_VHOST_FILE: ${{ inputs.nginx_vhost != '' && format('{0}/service/{1}', github.workspace, inputs.nginx_vhost) || '' }}
         run: |
-          env_short=$([ "${{ inputs.environment }}" = "production" ] && echo prod || echo staging)
+          case "${{ inputs.environment }}" in
+            production) env_short=prod ;;
+            next)       env_short=next ;;
+            *)          env_short=staging ;;
+          esac
           bash infra/deploy/deploy.sh "${{ inputs.service }}" "$env_short" "${{ inputs.image }}"
 
       - name: Logout
