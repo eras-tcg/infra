@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Install an nginx vhost for ERAS and reload nginx; restores the previous file if nginx -t fails.
 # Installed as root:root 0755 in /usr/local/sbin; github-runner may run ONLY this via sudoers.
-# Usage: eras-nginx-apply <source-file> <erastcg.com|staging.erastcg.com>
+# Usage: eras-nginx-apply <source-file> <erastcg.com|staging.erastcg.com|next.erastcg.com>
 set -euo pipefail
 
 src="${1:?source file}"; name="${2:?vhost name}"
 case "$name" in
-  erastcg.com|staging.erastcg.com) ;;
+  erastcg.com|staging.erastcg.com|next.erastcg.com) ;;
   *) echo "vhost not allowed: $name" >&2; exit 2 ;;
 esac
 [ -f "$src" ] || { echo "missing $src" >&2; exit 2; }
