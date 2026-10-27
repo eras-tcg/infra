@@ -52,7 +52,14 @@ Los repos son públicos y el runner corre en el VPS de producción:
 Actions → *CI/CD* del servicio → **Run workflow** → elegir `environment` y `image_tag` (sha corto o completo
 de un build anterior).
 
+## Backups
+
+Workflow [`backup-mongo.yml`](.github/workflows/backup-mongo.yml): todos los días 04:30 UTC (y manual), `mongodump` de `eras_db`
+con la imagen `mongo:7`, archivo gzip en `/home/github-runner/backups/mongo` (permisos 600), retención 14 días.
+Restaurar: `docker run --rm -i -e URI=... -v ~/backups/mongo:/b mongo:7 sh -c 'mongorestore --uri "$URI" --gzip --archive=/b/<archivo> --drop'`.
+
 ## Pendiente
 
 - Mover los `.env` del VPS a secrets de los Environments de GitHub.
+- Copia de los backups fuera del VPS (p. ej. bucket R2 privado).
 - `/api/auth/health` de users-service responde 403 (el permitAll apunta a `/api/health`).
