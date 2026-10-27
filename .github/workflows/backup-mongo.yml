@@ -1,0 +1,28 @@
+# Daily MongoDB backup on the VPS (self-hosted runner). Only schedule and manual runs:
+# never triggered by pull requests, so untrusted code cannot reach the runner.
+name: backup-mongo
+
+on:
+  schedule:
+    - cron: "30 4 * * *"   # 04:30 UTC every day
+  workflow_dispatch:
+    inputs:
+      retention_days:
+        description: Days of backups to keep
+        type: number
+        default: 14
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backup-mongo
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: [self-hosted, eras-vps]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dump eras_db
+        run: bash ops/backup-mongo.sh "${{ inputs.retention_days || 14 }}"
