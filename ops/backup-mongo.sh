@@ -10,8 +10,9 @@ env_file="/etc/drive-manager/.env"
 dir="${BACKUP_DIR:-$HOME/backups/mongo}"
 mkdir -p "$dir"; chmod 700 "$dir"
 
-uri=$(grep -E '^MONGODB_URI=' "$env_file" | head -1 | cut -d= -f2-)
-[ -n "$uri" ] || { echo "MONGODB_URI not found in $env_file" >&2; exit 1; }
+# DriveManager reads either name (Spring relaxed binding); the VPS uses SPRING_MONGODB_URI
+uri=$(grep -E '^(SPRING_)?MONGODB_URI=' "$env_file" | head -1 | cut -d= -f2- || true)
+[ -n "$uri" ] || { echo "::error::no MONGODB_URI / SPRING_MONGODB_URI in $env_file" >&2; exit 1; }
 
 stamp=$(date -u +%Y%m%dT%H%M%SZ)
 out="$dir/eras_db-$stamp.archive.gz"
