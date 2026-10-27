@@ -32,7 +32,8 @@ case "$svc:$env" in
   *) echo "unknown service: $svc" >&2; exit 2 ;;
 esac
 
-run_args=(-d --name "$name" --restart unless-stopped --network "$network" -p "${port}:${container_port}")
+# Publish only on loopback: host nginx proxies to localhost; nothing else should reach the containers directly.
+run_args=(-d --name "$name" --restart unless-stopped --network "$network" -p "127.0.0.1:${port}:${container_port}")
 case "$svc" in
   drive-manager)
     etc="/etc/drive-manager${etc_suffix}"
