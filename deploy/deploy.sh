@@ -49,7 +49,8 @@ healthy() {
   local code
   case "$svc" in
     drive-manager)
-      code=$(curl -s -o /dev/null -m 10 -w '%{http_code}' "http://127.0.0.1:${port}/api/cards/search/edition?edition=ST1" || true)
+      # Public health endpoint; it pings MongoDB (every data endpoint needs a session since 2026-10-27).
+      code=$(curl -s -o /dev/null -m 10 -w '%{http_code}' "http://127.0.0.1:${port}/api/drive/health" || true)
       [ "$code" = "200" ] ;;
     users-service)
       # Non-existent user -> 401 means the service answered after querying MongoDB.
