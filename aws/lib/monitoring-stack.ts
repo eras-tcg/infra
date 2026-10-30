@@ -81,13 +81,13 @@ export class MonitoringStack extends cdk.Stack {
         evaluationPeriods: 1,
         treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
       }),
-      // CPU is sampled every 5 minutes while the server runs: 140 of 144 samples in 12 hours means it never slept,
+      // EC2 reports CPU every minute while the server runs: 690 of 720 samples in 12 hours means it never slept,
       // so eras-idle is not powering it off and the month costs the always-on price.
       new cloudwatch.Alarm(this, 'NeverSleeps', {
         alarmName: 'eras-server-never-sleeps',
         alarmDescription: 'The ERAS server has been on for ~12 hours straight: check eras-idle (cost).',
         metric: ec2Metric('CPUUtilization', 'SampleCount', cdk.Duration.hours(12)),
-        threshold: 140,
+        threshold: 690,
         comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
         evaluationPeriods: 1,
         treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
