@@ -1,7 +1,7 @@
 # ERAS en AWS
 
 Infraestructura de erastcg.com en AWS (proyecto `211078959523`, Región **us-east-2**), escrita en CDK (TypeScript).
-Reemplaza al VPS de Contabo. MongoDB Atlas, Cloudflare R2 (imágenes) y Google Drive (API) no cambian.
+Reemplazó al VPS de Contabo (apagado y cancelado el 2026-10-30). MongoDB Atlas, Cloudflare R2 (imágenes) y Google Drive (API) no cambian.
 
 ```
 Usuario ──► CloudFront  erastcg.com / staging.erastcg.com
@@ -21,7 +21,7 @@ Se apaga solo tras 30 min sin actividad (eras-idle); la Lambda lo enciende.
 | `ErasZone` | Zona pública Route 53 `erastcg.com` (protegida contra borrado) |
 | `ErasBackend` | VPC (1 subred pública, sin NAT), security group solo CloudFront, EC2 + IP elástica, ECR `eras/drive-manager` y `eras/users-service`, logs `/eras/prod` y `/eras/staging` (14 días), bucket de backups de Mongo (30 días), Lambda Wake, presupuesto mensual con aviso por correo (destinatario en SSM `/eras/infra/budget-email`) |
 | `ErasSiteProd` / `ErasSiteStaging` | Bucket del sitio + distribución CloudFront |
-| `ErasDns` | Registros del dominio: hoy copian DonWeb (todo al VPS); `-c cutover=prod,staging` los pasa a CloudFront |
+| `ErasDns` | Registros A/AAAA alias de `erastcg.com`, `www` y `staging` a su distribución de CloudFront |
 | `ErasCi` | Usuario IAM `eras-ci` con la política mínima de despliegue |
 
 Restricciones del proyecto ("new AWS experience") que dan forma a esto:
@@ -37,7 +37,7 @@ Requisitos: Node 20+, AWS CLI v2 con el perfil `eras` (`aws login --profile eras
 npm ci
 npx cdk synth --strict --profile eras
 npx cdk diff --profile eras
-npx cdk deploy <Stack> --profile eras [-c certificateArn=...] [-c cutover=prod,staging]
+npx cdk deploy <Stack> --profile eras   # certificateArn está en cdk.json
 ```
 
 **Nunca** usar el perfil `default` en este PC (son credenciales de otro trabajo).
@@ -48,14 +48,14 @@ npx cdk deploy <Stack> --profile eras [-c certificateArn=...] [-c cutover=prod,s
 2. `scripts/bootstrap-params.sh` → secreto `/eras/infra/origin-secret`.
 3. `npx cdk deploy ErasZone ErasBackend ErasSiteProd ErasSiteStaging ErasDns ErasCi --profile eras`.
 4. **Atlas**: agregar la IP de salida `ErasBackend.PublicIp` a *Network Access*.
-5. **Variables de cada servicio** → SSM: `scripts/env-to-ssm.sh <prod|staging> <servicio> <archivo.env>` (los `.env` del VPS en `/etc/<servicio>[-staging]/.env`). Ajustar los que nombran el dominio o la máquina (ver abajo).
+5. **Variables de cada servicio** → SSM: `scripts/env-to-ssm.sh <prod|staging> <servicio> <archivo.env>`. Ajustar los que nombran el dominio o la máquina (ver abajo).
 6. **Imágenes** → ECR y primer deploy: `scripts/deploy-backend.sh <env> <servicio> <uri:tag>`.
 7. **Front**: `ng build --configuration aws` y `scripts/deploy-site.sh <env> dist/eras-web/browser`.
 8. Probar en las URLs `https://dxxxx.cloudfront.net` (salidas `Url` de los stacks del sitio).
 9. **DNS**: en DonWeb cambiar los nameservers a los de `ErasZone.NameServers`. Como la zona copia DonWeb, nada cambia todavía.
 10. `scripts/request-certificate.sh` → cuando el estado sea `ISSUED`: `npx cdk deploy ErasSiteProd ErasSiteStaging -c certificateArn=<arn>`.
-11. **Corte**: `npx cdk deploy ErasDns -c certificateArn=<arn> -c cutover=staging` → probar → `-c cutover=prod,staging`. Volver atrás = desplegar sin `cutover`.
-12. Después del corte: apagar Contabo cuando producción lleve unos días estable.
+11. **Corte** (hecho el 2026-10-30): los registros de `ErasDns` pasaron de la IP del VPS a CloudFront, primero staging y luego prod.
+12. Contabo apagado y cancelado; su IP quitada de Atlas.
 
 ## Configuración en SSM Parameter Store
 
@@ -76,7 +76,7 @@ Variables que cambian respecto del VPS:
 - `DRIVE_WEBHOOK_URL`: `https://<dominio>/api/drive/webhook` (llega por CloudFront).
 - `DRIVE_CATCH_UP_ON_START=true` en drive-manager (revisa Drive al despertar).
 - `NGROK_AUTH_TOKEN` **no** va en AWS: sin `DRIVE_WEBHOOK_URL` DriveManager abriría un túnel ngrok público hacia sí mismo.
-- `DRIVE_INSTANCE_ID` con sufijo `-aws` mientras conviva con Contabo (canal de Drive y `sync_state` propios).
+- `DRIVE_INSTANCE_ID`: `prod-drive-manager-1` / `staging-drive-manager-1` (id del canal de Drive y de `sync_state`; durante la convivencia con Contabo llevaba el sufijo `-aws`).
 - `VERIFICATION_BASE_URL`: el dominio público.
 
 ## El servidor
