@@ -25,8 +25,10 @@ fi
 aws_ ec2 wait instance-status-ok --instance-ids "$instance"
 
 # The ssm agent comes up before eras.service has finished its first start.
+# SSM takes a comment of 100 characters at most (a deploy's arguments carry the whole image URI)
+comment="$*"
 command=$(aws_ ssm send-command --instance-ids "$instance" --document-name AWS-RunShellScript \
-  --comment "$*" --timeout-seconds 900 \
+  --comment "${comment:0:100}" --timeout-seconds 900 \
   --parameters "commands=[\"systemctl is-active --quiet eras.service || systemctl start eras.service\",\"/usr/local/bin/eras-sync\",\"/opt/eras/current/bin/$*\"]" \
   --query Command.CommandId --output text)
 echo "ssm command $command"
