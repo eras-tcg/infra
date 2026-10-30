@@ -30,6 +30,7 @@ export const ENVIRONMENTS = ['prod', 'staging'] as const;
 export class BackendStack extends cdk.Stack {
   readonly instance: ec2.Instance;
   readonly originDomainName: string;
+  readonly wake: lambda.Function;
   readonly wakeUrl: lambda.FunctionUrl;
   readonly repositories: ecr.Repository[];
 
@@ -192,7 +193,7 @@ EOF`,
 
     // --- Wake: CloudFront /wake → this function → StartInstances. Its URL is public but answers only to the
     // origin secret CloudFront adds (the front calls it with POST, which origin access control cannot sign).
-    const wake = new lambda.Function(this, 'Wake', {
+    const wake = (this.wake = new lambda.Function(this, 'Wake', {
       runtime: lambda.Runtime.PYTHON_3_13,
       architecture: lambda.Architecture.ARM_64,
       handler: 'wake.handler',
@@ -201,7 +202,7 @@ EOF`,
       memorySize: 128,
       environment: { INSTANCE_ID: this.instance.instanceId, ORIGIN_SECRET: originSecret },
       logGroup: new logs.LogGroup(this, 'WakeLogs', { retention: logs.RetentionDays.TWO_WEEKS, removalPolicy: cdk.RemovalPolicy.DESTROY }),
-    });
+    }));
     wake.addToRolePolicy(new iam.PolicyStatement({ actions: ['ec2:DescribeInstances'], resources: ['*'] }));
     wake.addToRolePolicy(
       new iam.PolicyStatement({
