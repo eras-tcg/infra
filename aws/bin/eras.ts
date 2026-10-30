@@ -2,7 +2,6 @@
 // ERAS on AWS. Everything lives in the project's Region (us-east-2); CloudFront is global.
 // The CloudFront certificate lives in us-east-1, where the project cannot run CloudFormation, so it is created
 // with scripts/request-certificate.sh; its ARN is the context "certificateArn" in cdk.json.
-// DNS cutover from Contabo to AWS, per host: context "cutover" in cdk.json ("staging", "prod,staging", or "" to go back)
 import * as cdk from 'aws-cdk-lib';
 import { BackendStack } from '../lib/backend-stack.js';
 import { CiStack } from '../lib/ci-stack.js';
@@ -14,7 +13,6 @@ const app = new cdk.App();
 const env = { account: '211078959523', region: 'us-east-2' };
 const domain = 'erastcg.com';
 const certificateArn: string | undefined = app.node.tryGetContext('certificateArn');
-const cutover = String(app.node.tryGetContext('cutover') ?? '').split(',').filter(Boolean);
 
 cdk.Tags.of(app).add('project', 'eras');
 
@@ -41,9 +39,8 @@ const staging = new SiteStack(app, 'ErasSiteStaging', {
 new DnsStack(app, 'ErasDns', {
   env,
   zone: zone.zone,
-  contaboIp: '161.97.173.61',
-  prod: cutover.includes('prod') ? prod.distribution : undefined,
-  staging: cutover.includes('staging') ? staging.distribution : undefined,
+  prod: prod.distribution,
+  staging: staging.distribution,
 });
 
 new CiStack(app, 'ErasCi', { env, backend, sites: [prod, staging] });

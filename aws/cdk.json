@@ -4,7 +4,6 @@
     "@aws-cdk/core:checkSecretUsage": true,
     "@aws-cdk/aws-iam:minimizePolicies": true,
     "@aws-cdk/core:defaultCrossStackReferences": "weak",
-    "certificateArn": "arn:aws:acm:us-east-1:211078959523:certificate/9a76522d-f4b7-47f3-bbb7-e271e4c69bf2",
-    "cutover": "prod,staging"
+    "certificateArn": "arn:aws:acm:us-east-1:211078959523:certificate/9a76522d-f4b7-47f3-bbb7-e271e4c69bf2"
   }
 }
