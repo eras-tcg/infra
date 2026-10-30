@@ -1,0 +1,44 @@
+#!/bin/bash
+# eras-deploy <prod|staging> <drive-manager|users-service> <image>
+# Runs the image, waits for its healthcheck and goes back to the previous image when it does not pass.
+# CI calls it through SSM Run Command.
+set -euo pipefail
+source /opt/eras/current/bin/eras-common
+env=${1:-} svc=${2:-} image=${3:-}
+if ! [[ "$env" =~ ^(prod|staging)$ && "$svc" =~ ^(drive-manager|users-service)$ && -n "$image" ]]; then
+  echo "usage: eras-deploy <prod|staging> <drive-manager|users-service> <image>" >&2
+  exit 2
+fi
+
+exec 9>/run/eras-deploy.lock
+flock 9   # the idle check does not power off while this is held
+
+name="/eras/$env/$svc/image"
+previous=$(param "$name")
+set_image() { aws ssm put-parameter --region "$REGION" --name "$name" --type String --overwrite --value "$1" >/dev/null; }
+
+healthy() {
+  local port=${PROXY_PORT[$env]} secret code
+  secret=$(origin_secret)
+  # Public health endpoints of each service (they answer once Spring is up).
+  local path=/api/drive/health
+  [ "$svc" = users-service ] && path=/api/auth/health
+  for _ in $(seq 1 60); do
+    code=$(curl -s -o /dev/null -w '%{http_code}' -H "X-Eras-Origin: $secret" "http://127.0.0.1:$port$path" || true)
+    [ "$code" = 200 ] && return 0
+    sleep 5
+  done
+  return 1
+}
+
+echo "deploying $image to $env/$svc (previous: ${previous:-none})"
+set_image "$image"
+if /opt/eras/current/bin/eras-up && healthy; then
+  echo "healthy"
+  exit 0
+fi
+echo "not healthy; going back to ${previous:-none}" >&2
+docker logs --tail 80 "eras-$env-$svc-1" >&2 || true
+set_image "${previous:-none}"
+/opt/eras/current/bin/eras-up || true
+exit 1

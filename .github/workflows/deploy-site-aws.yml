@@ -1,0 +1,50 @@
+# Reusable deploy of the Angular site to AWS (S3 + CloudFront, see aws/README.md), called by eras-web with
+# `secrets: inherit` after a job of the same run uploaded the build (`ng build --configuration aws`) as an artifact.
+# The GitHub Environment (staging/production) carries the approval rule. Rollback: re-run this job in an
+# earlier run (its artifact is kept 90 days).
+name: deploy-site-aws
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: staging | production
+        required: true
+        type: string
+      artifact:
+        description: name of the artifact holding dist/eras-web/browser
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.environment }}
+      url: ${{ inputs.environment == 'production' && 'https://erastcg.com' || 'https://staging.erastcg.com' }}
+    concurrency:
+      group: deploy-site-aws-${{ inputs.environment }}
+      cancel-in-progress: false
+    steps:
+      - name: Checkout infra
+        uses: actions/checkout@v4
+        with:
+          repository: eras-tcg/infra
+          path: infra
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.artifact }}
+          path: site
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-2
+
+      - name: Upload and invalidate
+        run: bash infra/aws/scripts/deploy-site.sh "${{ inputs.environment == 'production' && 'prod' || 'staging' }}" site

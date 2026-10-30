@@ -1,0 +1,7 @@
+[Unit]
+Description=ERAS: power off when nobody has used the site for a while
+After=eras.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/eras/current/bin/eras-idle

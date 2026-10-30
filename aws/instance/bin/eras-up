@@ -1,0 +1,60 @@
+#!/bin/bash
+# Writes every environment's env files, nginx config and compose file from SSM and starts the containers.
+# A service starts only when /eras/<env>/<service>/image holds an image (pushed by CI); its settings come
+# from the parameters under /eras/<env>/<service>/env/ (one per variable, SecureString).
+set -euo pipefail
+source /opt/eras/current/bin/eras-common
+
+mkdir -p "$RUN/env" "$RUN/nginx"
+chmod 700 "$RUN/env"
+secret=$(origin_secret)
+[ -n "$secret" ] || { echo "missing /eras/infra/origin-secret" >&2; exit 1; }
+
+compose="$RUN/compose.yml.new"
+cat > "$compose" <<YAML
+name: eras
+networks:
+  eras: {}
+services:
+  proxy:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    networks: [eras]
+    ports: ["80:80", "8080:8080"]
+    volumes: ["$RUN/nginx:/etc/nginx/conf.d:ro"]
+    logging: { driver: awslogs, options: { awslogs-region: $REGION, awslogs-group: /eras/prod, awslogs-stream: proxy } }
+YAML
+
+for env in prod staging; do
+  for svc in drive-manager users-service; do
+    image=$(param "/eras/$env/$svc/image")
+    if [ -z "$image" ] || [ "$image" = none ]; then
+      echo "$env/$svc: no image yet, skipped"
+      continue
+    fi
+    aws ssm get-parameters-by-path --region "$REGION" --path "/eras/$env/$svc/env/" --with-decryption --output json \
+      --query 'Parameters[].[Name,Value]' | jq -r '.[] | "\(.[0] | split("/") | last)=\(.[1])"' > "$RUN/env/$env-$svc.env"
+    chmod 600 "$RUN/env/$env-$svc.env"
+    cat >> "$compose" <<YAML
+  $env-$svc:
+    image: $image
+    restart: unless-stopped
+    networks: [eras]
+    env_file: [env/$env-$svc.env]
+    environment:
+      SERVER_PORT: "${SERVICE_PORT[$svc]}"
+      JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=75 -XX:+UseSerialGC"
+    mem_limit: ${SERVICE_MEMORY[$env]}
+    logging: { driver: awslogs, options: { awslogs-region: $REGION, awslogs-group: /eras/$env, awslogs-stream: $svc } }
+YAML
+  done
+  sed -e "s/__PORT__/${PROXY_PORT[$env]}/" -e "s/__ENV__/$env/g" -e "s/__SECRET__/$secret/" \
+    "$HERE/nginx/env.conf" > "$RUN/nginx/$env.conf"
+done
+mv "$compose" "$RUN/compose.yml"
+
+aws ecr get-login-password --region "$REGION" | docker login --username AWS --password-stdin "$REGISTRY" >/dev/null
+cd "$RUN"
+docker compose up -d --remove-orphans
+# nginx resolves the service names per request; a reload picks up a changed config.
+docker compose exec -T proxy nginx -s reload >/dev/null 2>&1 || true
