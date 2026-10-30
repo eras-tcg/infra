@@ -1,5 +1,10 @@
 # eras-tcg/infra
 
+> **Desde 2026-10-30 ERAS corre en AWS** ([`aws/`](aws/README.md)): CDK, scripts del servidor y los workflows
+> reutilizables [`deploy-aws.yml`](.github/workflows/deploy-aws.yml) (backends) y
+> [`deploy-site-aws.yml`](.github/workflows/deploy-site-aws.yml) (front). Lo que sigue describe el despliegue
+> anterior en el VPS de Contabo (`deploy.yml`, `deploy/deploy.sh`), que queda solo hasta apagar ese servidor.
+
 Despliegue de ERAS (erastcg.com) con GitHub Actions. Reemplaza a Jenkins.
 
 ## Flujo

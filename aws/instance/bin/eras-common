@@ -1,0 +1,11 @@
+# Sourced by the eras-* scripts.
+source /opt/eras/infra.env
+RUN=/opt/eras/runtime
+HERE=/opt/eras/current
+REGISTRY="$ACCOUNT.dkr.ecr.$REGION.amazonaws.com"
+declare -A PROXY_PORT=([prod]=80 [staging]=8080)
+declare -A SERVICE_PORT=([drive-manager]=8081 [users-service]=8082)
+declare -A SERVICE_MEMORY=([prod]=1000m [staging]=700m)
+
+param() { aws ssm get-parameter --region "$REGION" --name "$1" --query Parameter.Value --output text 2>/dev/null || true; }
+origin_secret() { param /eras/infra/origin-secret; }

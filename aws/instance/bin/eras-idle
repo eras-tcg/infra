@@ -1,0 +1,32 @@
+#!/bin/bash
+# Powers the server off (the instance stops; the wake function starts it again) when no environment had API
+# or simulator activity for IDLE_LIMIT seconds and no simulator room has players.
+# Reads drive-manager's /api/system/activity.
+set -euo pipefail
+source /opt/eras/current/bin/eras-common
+IDLE_LIMIT=${IDLE_LIMIT:-1800}
+uptime=$(cut -d. -f1 /proc/uptime)
+[ "$uptime" -ge 1200 ] || exit 0
+
+exec 9>/run/eras-deploy.lock
+flock -n 9 || { echo "a deploy is running"; exit 0; }
+
+secret=$(origin_secret)
+answered=0
+for env in prod staging; do
+  body=$(curl -fsS -m 5 -H "X-Eras-Origin: $secret" "http://127.0.0.1:${PROXY_PORT[$env]}/api/system/activity" 2>/dev/null) || continue
+  answered=1
+  idle=$(jq -r '.idleSeconds // 0 | floor' <<<"$body")
+  rooms=$(jq -r '.activeRooms | if type == "array" then length elif type == "number" then . else 0 end' <<<"$body")
+  if [ "$idle" -lt "$IDLE_LIMIT" ] || [ "$rooms" != 0 ]; then
+    echo "$env busy: idle ${idle}s, rooms $rooms"
+    exit 0
+  fi
+done
+# Images without the activity endpoint: no way to know whether someone is playing, so stay on.
+if [ "$answered" = 0 ]; then
+  echo "no activity endpoint answered; staying on"
+  exit 0
+fi
+logger -t eras-idle "idle for ${IDLE_LIMIT}s, powering off"
+systemctl poweroff

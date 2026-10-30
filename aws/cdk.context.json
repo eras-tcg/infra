@@ -1,0 +1,14 @@
+{
+  "availability-zones:account=211078959523:region=us-east-2": [
+    "us-east-2a",
+    "us-east-2b",
+    "us-east-2c"
+  ],
+  "cc-api-provider:account=211078959523:expectedMatchCount=exactly-one:propertiesToReturn.0=PrefixListId:propertyMatch.PrefixListName=com.amazonaws.global.cloudfront.origin-facing:region=us-east-2:typeName=AWS$:$:EC2$:$:PrefixList": [
+    {
+      "PrefixListId": "pl-b6a144df",
+      "Identifier": "pl-b6a144df"
+    }
+  ],
+  "ssm:account=211078959523:parameterName=/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.1-x86_64:region=us-east-2": "ami-0176a3874468b14ae"
+}

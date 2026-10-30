@@ -1,0 +1,15 @@
+[Unit]
+Description=ERAS: sync the server bundle, write config from SSM and start the containers
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStartPre=/usr/local/bin/eras-sync
+ExecStart=/opt/eras/current/bin/eras-up
+TimeoutStartSec=900
+
+[Install]
+WantedBy=multi-user.target
