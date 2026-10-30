@@ -15,10 +15,15 @@ if [ "$(wc -w <<<"$old")" -ge 2 ]; then
   exit 1
 fi
 
-key=$(aws iam create-access-key --profile "$PROFILE" --user-name "$USER_NAME" --output json)
-jq -r .AccessKey.AccessKeyId <<<"$key" | gh_ secret set AWS_ACCESS_KEY_ID --org "$ORG" --visibility all
-jq -r .AccessKey.SecretAccessKey <<<"$key" | gh_ secret set AWS_SECRET_ACCESS_KEY --org "$ORG" --visibility all
-unset key
+read -r key_id key_secret < <(aws iam create-access-key --profile "$PROFILE" --user-name "$USER_NAME" \
+  --query 'AccessKey.[AccessKeyId,SecretAccessKey]' --output text | tr -d '\r')
+if [ -z "$key_id" ] || [ -z "$key_secret" ]; then
+  echo "could not read the new key; delete it in IAM and run again" >&2
+  exit 1
+fi
+printf '%s' "$key_id" | gh_ secret set AWS_ACCESS_KEY_ID --org "$ORG" --visibility all
+printf '%s' "$key_secret" | gh_ secret set AWS_SECRET_ACCESS_KEY --org "$ORG" --visibility all
+unset key_id key_secret
 echo "new key stored in $ORG secrets"
 
 for id in $old; do
