@@ -6,6 +6,7 @@ import * as cdk from 'aws-cdk-lib';
 import { BackendStack } from '../lib/backend-stack.js';
 import { CiStack } from '../lib/ci-stack.js';
 import { DnsStack } from '../lib/dns-stack.js';
+import { MonitoringStack } from '../lib/monitoring-stack.js';
 import { SiteStack } from '../lib/site-stack.js';
 import { ZoneStack } from '../lib/zone-stack.js';
 
@@ -44,3 +45,4 @@ new DnsStack(app, 'ErasDns', {
 });
 
 new CiStack(app, 'ErasCi', { env, backend, sites: [prod, staging] });
+new MonitoringStack(app, 'ErasMonitoring', { env, backend, sites: [prod, staging] });

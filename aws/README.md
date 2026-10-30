@@ -23,6 +23,7 @@ Se apaga solo tras 30 min sin actividad (eras-idle); la Lambda lo enciende.
 | `ErasSiteProd` / `ErasSiteStaging` | Bucket del sitio + distribución CloudFront |
 | `ErasDns` | Registros A/AAAA alias de `erastcg.com`, `www` y `staging` a su distribución de CloudFront |
 | `ErasCi` | Usuario IAM `eras-ci` con la política mínima de despliegue |
+| `ErasMonitoring` | Dashboard CloudWatch `ERAS`, alarmas con aviso por correo (tópico SNS `eras-alerts`, mismo destinatario que el presupuesto) |
 
 Restricciones del proyecto ("new AWS experience") que dan forma a esto:
 - **Sin proveedores OIDC** (`iam:*Provider*` bloqueado): GitHub Actions usa una llave del usuario `eras-ci` guardada en secrets de GitHub.
@@ -100,6 +101,26 @@ Variables que cambian respecto del VPS:
   ```bash
   aws s3 cp s3://<BackupBucket>/mongo/<archivo> - | docker run --rm -i -e URI="<uri>" mongo:7     sh -c 'mongorestore --uri "$URI" --gzip --archive --nsFrom "eras_db.*" --nsTo "<destino>.*"'
   ```
+
+## Monitoreo
+
+Dashboard **ERAS**: CloudWatch (us-east-2) → Dashboards → `ERAS` (URL en el output `ErasMonitoring.DashboardUrl`).
+Muestra el estado de las alarmas, la CPU del servidor (sin línea = dormido, es lo normal), los despertares de la Lambda
+Wake, visitas y % de 5xx de CloudFront por entorno (métricas de CloudFront leídas desde us-east-1), errores en los logs
+del backend y las últimas líneas `ERROR` de prod.
+
+Alarmas (correo al confirmar la suscripción de `eras-alerts`; avisan también al volver a OK). Sin datos = OK, porque
+el servidor dormido no publica métricas:
+
+| Alarma | Cuándo |
+|---|---|
+| `eras-server-broken` | El servidor está encendido pero falla los status checks de EC2 (3 de 5 minutos) |
+| `eras-wake-failing` | La Lambda Wake falla: el sitio no puede despertar al servidor |
+| `eras-prod-errors` | 5 o más líneas `ERROR` de Spring en `/eras/prod` en 5 minutos |
+| `eras-server-never-sleeps` | El servidor lleva ~12 h seguidas encendido: `eras-idle` no lo está apagando (costo) |
+
+Todo cabe en la capa gratuita (3 dashboards, 10 alarmas, 2 métricas de logs). No se usan health checks que llamen a la
+API: mantendrían el servidor despierto.
 
 ## Contrato con la aplicación
 
