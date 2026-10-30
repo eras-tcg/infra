@@ -6,6 +6,7 @@ import * as ecr from 'aws-cdk-lib/aws-ecr';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as logs from 'aws-cdk-lib/aws-logs';
+import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as s3assets from 'aws-cdk-lib/aws-s3-assets';
 import * as ssm from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
@@ -16,6 +17,7 @@ export type BackendStackProps = cdk.StackProps;
 export const ORIGIN_SECRET_PARAM = '/eras/infra/origin-secret';
 export const BUNDLE_PARAM = '/eras/infra/bundle';
 // The budget alert recipient, kept out of this public repository.
+export const BACKUP_BUCKET_PARAM = '/eras/infra/backup-bucket';
 export const BUDGET_EMAIL_PARAM = '/eras/infra/budget-email';
 export const SERVICES = ['drive-manager', 'users-service'] as const;
 export const ENVIRONMENTS = ['prod', 'staging'] as const;
@@ -105,6 +107,22 @@ export class BackendStack extends cdk.Stack {
         ),
       }),
     );
+
+    // --- Daily MongoDB dumps (eras-backup on the server, started by .github/workflows/backup-mongo.yml).
+    const backups = new s3.Bucket(this, 'Backups', {
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      encryption: s3.BucketEncryption.S3_MANAGED,
+      enforceSSL: true,
+      lifecycleRules: [{ id: 'keep-30-days', expiration: cdk.Duration.days(30) }],
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+    });
+    backups.grantPut(role, 'mongo/*');
+    backups.grantRead(role, 'mongo/*');
+    new ssm.StringParameter(this, 'BackupBucketParam', {
+      parameterName: BACKUP_BUCKET_PARAM,
+      stringValue: backups.bucketName,
+      description: 'Bucket of the daily MongoDB dumps',
+    });
 
     const userData = ec2.UserData.forLinux();
     userData.addCommands(
@@ -212,6 +230,7 @@ EOF`,
     new cdk.CfnOutput(this, 'InstanceId', { value: this.instance.instanceId });
     new cdk.CfnOutput(this, 'PublicIp', { value: eip.attrPublicIp, description: 'Add to the Atlas IP access list' });
     new cdk.CfnOutput(this, 'OriginDomainName', { value: this.originDomainName });
+    new cdk.CfnOutput(this, 'BackupBucket', { value: backups.bucketName });
     this.repositories.forEach((repo, i) => new cdk.CfnOutput(this, `Repo${i}`, { value: repo.repositoryUri }));
   }
 }

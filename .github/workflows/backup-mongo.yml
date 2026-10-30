@@ -1,16 +1,12 @@
-# Daily MongoDB backup on the VPS (self-hosted runner). Only schedule and manual runs:
-# never triggered by pull requests, so untrusted code cannot reach the runner.
+# Daily MongoDB backup (eras_db) into the AWS backups bucket, kept 30 days (see aws/README.md).
+# The dump runs on the AWS server (Atlas only lets in its address): this job starts it if it sleeps and runs
+# eras-backup there through SSM. Only schedule and manual runs.
 name: backup-mongo
 
 on:
   schedule:
     - cron: "30 4 * * *"   # 04:30 UTC every day
   workflow_dispatch:
-    inputs:
-      retention_days:
-        description: Days of backups to keep
-        type: number
-        default: 14
 
 permissions:
   contents: read
@@ -21,8 +17,13 @@ concurrency:
 
 jobs:
   backup:
-    runs-on: [self-hosted, eras-vps]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Dump eras_db
-        run: bash ops/backup-mongo.sh "${{ inputs.retention_days || 14 }}"
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-2
+      - name: Dump eras_db to S3
+        run: bash aws/scripts/backup-mongo.sh

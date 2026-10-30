@@ -19,7 +19,7 @@ Se apaga solo tras 30 min sin actividad (eras-idle); la Lambda lo enciende.
 | Stack | Contenido |
 |---|---|
 | `ErasZone` | Zona pública Route 53 `erastcg.com` (protegida contra borrado) |
-| `ErasBackend` | VPC (1 subred pública, sin NAT), security group solo CloudFront, EC2 + IP elástica, ECR `eras/drive-manager` y `eras/users-service`, logs `/eras/prod` y `/eras/staging` (14 días), Lambda Wake, presupuesto mensual USD 30 con aviso por correo |
+| `ErasBackend` | VPC (1 subred pública, sin NAT), security group solo CloudFront, EC2 + IP elástica, ECR `eras/drive-manager` y `eras/users-service`, logs `/eras/prod` y `/eras/staging` (14 días), bucket de backups de Mongo (30 días), Lambda Wake, presupuesto mensual con aviso por correo (destinatario en SSM `/eras/infra/budget-email`) |
 | `ErasSiteProd` / `ErasSiteStaging` | Bucket del sitio + distribución CloudFront |
 | `ErasDns` | Registros del dominio: hoy copian DonWeb (todo al VPS); `-c cutover=prod,staging` los pasa a CloudFront |
 | `ErasCi` | Usuario IAM `eras-ci` con la política mínima de despliegue |
@@ -88,6 +88,18 @@ Variables que cambian respecto del VPS:
   (si ningún entorno responde ese endpoint, **no apaga**: las imágenes sin él quedan siempre encendidas). No apaga durante un `eras-deploy`.
 - Logs: CloudWatch `/eras/prod` y `/eras/staging`, un stream por servicio (`proxy` en `/eras/prod`).
 - Memoria: prod 1000 MB y staging 700 MB por servicio, 2 GB de swap.
+
+## Backups de MongoDB
+
+- Diario a las 04:30 UTC: workflow `backup-mongo.yml` → `scripts/backup-mongo.sh` → `eras-backup` en el servidor
+  (lo enciende si duerme; Atlas solo acepta su IP) → `mongodump` de `eras_db` a
+  `s3://<BackupBucket>/mongo/eras_db-<fecha>.archive.gz`. El bucket borra cada dump a los 30 días.
+- Manual: Actions → `backup-mongo` → *Run workflow*, o `bash aws/scripts/backup-mongo.sh` con el perfil `eras`.
+- `mongo/vps/`: los backups que tenía el VPS de Contabo (27–29 oct 2026).
+- Restaurar (a una base nueva, desde un lugar con acceso a Atlas, p. ej. el servidor):
+  ```bash
+  aws s3 cp s3://<BackupBucket>/mongo/<archivo> - | docker run --rm -i -e URI="<uri>" mongo:7     sh -c 'mongorestore --uri "$URI" --gzip --archive --nsFrom "eras_db.*" --nsTo "<destino>.*"'
+  ```
 
 ## Contrato con la aplicación
 

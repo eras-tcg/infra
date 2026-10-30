@@ -1,0 +1,26 @@
+#!/bin/bash
+# eras-backup: mongodump of the production database (the URI of prod drive-manager) streamed to
+# s3://<backups bucket>/mongo/eras_db-<time>.archive.gz. The bucket's lifecycle deletes dumps after 30 days.
+# The URI goes into the container through the environment and is never printed.
+set -euo pipefail
+source /opt/eras/current/bin/eras-common
+
+exec 9>/run/eras-deploy.lock
+flock 9   # the idle check does not power off while this is held
+
+bucket=$(param /eras/infra/backup-bucket)
+[ -n "$bucket" ] || { echo "missing /eras/infra/backup-bucket" >&2; exit 1; }
+uri=$(aws ssm get-parameter --region "$REGION" --with-decryption --name /eras/prod/drive-manager/env/SPRING_MONGODB_URI \
+  --query Parameter.Value --output text)
+key="mongo/eras_db-$(date -u +%Y%m%dT%H%M%SZ).archive.gz"
+
+docker run --rm -e MONGODB_URI="$uri" mongo:7 sh -c 'mongodump --uri "$MONGODB_URI" --gzip --archive --quiet' |
+  aws s3 cp - "s3://$bucket/$key" --region "$REGION" --only-show-errors
+unset uri
+
+size=$(aws s3api head-object --region "$REGION" --bucket "$bucket" --key "$key" --query ContentLength --output text)
+if [ "$size" -le 1024 ]; then
+  echo "backup too small ($size bytes), something is wrong" >&2
+  exit 1
+fi
+echo "backup ok: s3://$bucket/$key ($((size / 1024)) KiB)"
