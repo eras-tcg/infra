@@ -128,4 +128,4 @@ reutilizables con `secrets: inherit`:
 ## Costos esperados (USD/mes)
 
 EC2 t3a.medium ~0,038/h solo encendido (~7 con 6 h/día) · disco 30 GB ~2,4 · IP elástica ~3,6 · ECR < 1 ·
-CloudFront, Lambda, S3, SSM ~0 con este tráfico · Route 53 0,50. Total ~13–15. Presupuesto con aviso: 30.
+CloudFront, Lambda, S3, SSM ~0 con este tráfico · Route 53 0,50. Total ~13–15. Aviso por correo a USD 20 (gastado o previsto); límite de gasto del proyecto en AWS Settings: USD 35 (al alcanzarlo AWS pausa todo).

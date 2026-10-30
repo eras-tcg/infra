@@ -211,13 +211,14 @@ EOF`,
     );
     this.wakeUrl = wake.addFunctionUrl({ authType: lambda.FunctionUrlAuthType.NONE });
 
-    // --- Monthly budget: e-mail at 80 % spent and when the forecast passes the limit.
+    // --- Monthly budget: e-mail when the month reaches USD 20 or is forecast to. The project's spend limit
+    // (AWS Settings, USD 35) pauses everything when reached, so this warns well before it.
     const budgetEmail = ssm.StringParameter.valueForStringParameter(this, BUDGET_EMAIL_PARAM);
     new budgets.CfnBudget(this, 'Budget', {
-      budget: { budgetName: 'eras-monthly', budgetType: 'COST', timeUnit: 'MONTHLY', budgetLimit: { amount: 30, unit: 'USD' } },
+      budget: { budgetName: 'eras-spend-alert', budgetType: 'COST', timeUnit: 'MONTHLY', budgetLimit: { amount: 20, unit: 'USD' } },
       notificationsWithSubscribers: [
         {
-          notification: { notificationType: 'ACTUAL', comparisonOperator: 'GREATER_THAN', threshold: 80, thresholdType: 'PERCENTAGE' },
+          notification: { notificationType: 'ACTUAL', comparisonOperator: 'GREATER_THAN', threshold: 100, thresholdType: 'PERCENTAGE' },
           subscribers: [{ subscriptionType: 'EMAIL', address: budgetEmail }],
         },
         {
