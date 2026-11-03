@@ -134,7 +134,7 @@ export class BackendStack extends cdk.Stack {
       'curl -fsSL https://github.com/docker/compose/releases/download/v2.39.2/docker-compose-linux-x86_64 -o /usr/local/lib/docker/cli-plugins/docker-compose',
       'chmod +x /usr/local/lib/docker/cli-plugins/docker-compose',
       'systemctl enable --now docker',
-      // 2 GB of swap: four JVMs share 4 GB.
+      // 2 GB of swap: four JVMs share 2 GB of RAM (about 1.1 GB used at rest).
       'if [ ! -f /swapfile ]; then dd if=/dev/zero of=/swapfile bs=1M count=2048 && chmod 600 /swapfile && mkswap /swapfile; fi',
       'grep -q /swapfile /etc/fstab || echo "/swapfile none swap sw 0 0" >> /etc/fstab',
       'swapon -a',
@@ -168,7 +168,7 @@ EOF`,
     this.instance = new ec2.Instance(this, 'Server', {
       vpc,
       vpcSubnets: { subnetType: ec2.SubnetType.PUBLIC },
-      instanceType: ec2.InstanceType.of(ec2.InstanceClass.T3A, ec2.InstanceSize.MEDIUM),
+      instanceType: ec2.InstanceType.of(ec2.InstanceClass.T3A, ec2.InstanceSize.SMALL),
       machineImage: ec2.MachineImage.latestAmazonLinux2023({ cachedInContext: true }),
       securityGroup: sg,
       role,
