@@ -10,7 +10,7 @@ Usuario ──► CloudFront  erastcg.com / staging.erastcg.com
               └─ /api/*, /ws  → EC2 :80 (prod) / :8080 (staging), header X-Eras-Origin obligatorio
                                  nginx ─► {env}-drive-manager :8081   (/api/*, /ws)
                                        └► {env}-users-service :8082   (/api/auth|users|roles|permissions)
-EC2 (t3a.medium, Amazon Linux 2023, docker) ─► Atlas · R2 · Drive API · ECR
+EC2 (t3a.small, Amazon Linux 2023, docker) ─► Atlas · R2 · Drive API · ECR
 Se apaga solo tras 30 min sin actividad (eras-idle); la Lambda lo enciende.
 ```
 
@@ -88,7 +88,7 @@ Variables que cambian respecto del VPS:
   `/api/system/activity` de todos los entornos dice más de 1800 s sin uso y ninguna sala con jugadores
   (si ningún entorno responde ese endpoint, **no apaga**: las imágenes sin él quedan siempre encendidas). No apaga durante un `eras-deploy`.
 - Logs: CloudWatch `/eras/prod` y `/eras/staging`, un stream por servicio (`proxy` en `/eras/prod`).
-- Memoria: prod 1000 MB y staging 700 MB por servicio, 2 GB de swap.
+- Memoria (t3a.small, 2 GB de RAM): tope por servicio prod 1000 MB y staging 500 MB, más 2 GB de swap; en reposo se usan ~1,1 GB.
 
 ## Backups de MongoDB
 
@@ -148,5 +148,5 @@ reutilizables con `secrets: inherit`:
 
 ## Costos esperados (USD/mes)
 
-EC2 t3a.medium ~0,038/h solo encendido (~7 con 6 h/día) · disco 30 GB ~2,4 · IP elástica ~3,6 · ECR < 1 ·
-CloudFront, Lambda, S3, SSM ~0 con este tráfico · Route 53 0,50. Total ~13–15. Aviso por correo a USD 20 (gastado o previsto); límite de gasto del proyecto en AWS Settings: USD 35 (al alcanzarlo AWS pausa todo).
+EC2 t3a.small ~0,019/h solo encendido (~3,5 con 6 h/día) · disco 30 GB ~2,4 · IP elástica ~3,6 · ECR < 1 ·
+CloudFront, Lambda, S3, SSM ~0 con este tráfico · Route 53 0,50. Total ~10–12. Aviso por correo a USD 20 (gastado o previsto); límite de gasto del proyecto en AWS Settings: USD 35 (al alcanzarlo AWS pausa todo).
