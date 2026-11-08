@@ -27,6 +27,8 @@ const prod = new SiteStack(app, 'ErasSiteProd', {
   originPort: 80,
   domainNames: certificateArn ? [domain, `www.${domain}`] : undefined,
   certificateArn,
+  // erastcg.com redirects to www.erastcg.com: one origin for the installable app and its offline data
+  canonicalHost: certificateArn ? `www.${domain}` : undefined,
 });
 const staging = new SiteStack(app, 'ErasSiteStaging', {
   env,

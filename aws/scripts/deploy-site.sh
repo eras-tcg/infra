@@ -29,5 +29,12 @@ aws s3 sync "${PROFILE_ARGS[@]}" "$dir" "s3://$bucket" --exclude '*' "${hashed[@
 aws s3 sync "${PROFILE_ARGS[@]}" "$dir" "s3://$bucket" --delete \
   --exclude '*-????????.js' --exclude '*-????????.css' \
   --cache-control 'no-cache'
-aws cloudfront create-invalidation "${PROFILE_ARGS[@]}" --distribution-id "$distribution" --paths '/index.html' '/' >/dev/null
+# The web app manifest needs its own content type (sync would guess binary/octet-stream for .webmanifest)
+if [ -f "$dir/manifest.webmanifest" ]; then
+  aws s3 cp "${PROFILE_ARGS[@]}" "$dir/manifest.webmanifest" "s3://$bucket/manifest.webmanifest" \
+    --content-type 'application/manifest+json' --cache-control 'no-cache'
+fi
+# The service worker's files are invalidated with the page, so an installed app sees a new version at once
+aws cloudfront create-invalidation "${PROFILE_ARGS[@]}" --distribution-id "$distribution" \
+  --paths '/index.html' '/' '/ngsw.json' '/eras-sw.js' '/ngsw-worker.js' '/manifest.webmanifest' >/dev/null
 echo "uploaded to s3://$bucket, invalidated $distribution"

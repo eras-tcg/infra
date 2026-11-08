@@ -14,6 +14,8 @@ export interface SiteStackProps extends cdk.StackProps {
   originPort: number;
   domainNames?: string[];
   certificateArn?: string;
+  /** The one hostname the site is served on; requests for the page on any other of its names get a 301 to it. */
+  canonicalHost?: string;
 }
 
 const ORIGIN_HEADER = 'X-Eras-Origin';
@@ -42,10 +44,20 @@ export class SiteStack extends cdk.Stack {
 
     // Client-side routes (no file extension, e.g. /cartas/E1.3) get index.html; files keep their path.
     // Done at the edge instead of custom error responses, which would also turn API 403/404 into the page.
+    // With canonicalHost, the page and its files answer on one hostname only (an installed app and its offline data
+    // belong to one origin): any other name gets a 301 to the same path there. /api, /ws and /wake are not redirected.
+    const canonical = props.canonicalHost
+      ? "var h = r.headers.host && r.headers.host.value; if (h && h !== '" + props.canonicalHost + "') {" +
+        " var q = Object.keys(r.querystring).map(function (k) { var v = r.querystring[k];" +
+        " return (v.multiValue || [v]).map(function (m) { return m.value === '' ? k : k + '=' + m.value; }).join('&'); }).join('&');" +
+        " return { statusCode: 301, statusDescription: 'Moved Permanently', headers: { location: { value:" +
+        " 'https://" + props.canonicalHost + "' + r.uri + (q ? '?' + q : '') } } }; } "
+      : '';
     const spaRewrite = new cloudfront.Function(this, 'SpaRewrite', {
       runtime: cloudfront.FunctionRuntime.JS_2_0,
       code: cloudfront.FunctionCode.fromInline(
-        "function handler(event) { var r = event.request; if (!/\\.[a-z][a-z0-9]{0,4}$/i.test(r.uri)) { r.uri = '/index.html'; } return r; }",
+        'function handler(event) { var r = event.request; ' + canonical +
+        "if (!/\\.[a-z][a-z0-9]{0,4}$/i.test(r.uri)) { r.uri = '/index.html'; } return r; }",
       ),
     });
 
