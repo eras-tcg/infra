@@ -29,7 +29,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: ${{ inputs.environment }}
-      url: ${{ inputs.environment == 'production' && 'https://erastcg.com' || 'https://staging.erastcg.com' }}
+      url: ${{ inputs.environment == 'production' && 'https://www.erastcg.com' || 'https://staging.erastcg.com' }}
     concurrency:
       group: deploy-aws-${{ inputs.service }}-${{ inputs.environment }}
       cancel-in-progress: false
