@@ -42,7 +42,8 @@ export class SiteStack extends cdk.Stack {
       autoDeleteObjects: true,
     });
 
-    // Client-side routes (no file extension, e.g. /cartas/E1.3) get index.html; files keep their path.
+    // Client-side routes (no file extension, e.g. /cartas/E1.3) get index.html; files keep their path (extensions up to
+    // 12 characters, so manifest.webmanifest is a file too).
     // Done at the edge instead of custom error responses, which would also turn API 403/404 into the page.
     // With canonicalHost, the page and its files answer on one hostname only (an installed app and its offline data
     // belong to one origin): any other name gets a 301 to the same path there. /api, /ws and /wake are not redirected.
@@ -57,7 +58,7 @@ export class SiteStack extends cdk.Stack {
       runtime: cloudfront.FunctionRuntime.JS_2_0,
       code: cloudfront.FunctionCode.fromInline(
         'function handler(event) { var r = event.request; ' + canonical +
-        "if (!/\\.[a-z][a-z0-9]{0,4}$/i.test(r.uri)) { r.uri = '/index.html'; } return r; }",
+        "if (!/\\.[a-z][a-z0-9]{0,11}$/i.test(r.uri)) { r.uri = '/index.html'; } return r; }",
       ),
     });
 
