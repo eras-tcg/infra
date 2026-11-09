@@ -12,7 +12,7 @@ on:
         required: true
         type: string
       artifact:
-        description: name of the artifact holding dist/eras-web/browser
+        description: name of the artifact holding dist/eras-web/browser (and, optionally, the Android app under app/)
         required: true
         type: string
 

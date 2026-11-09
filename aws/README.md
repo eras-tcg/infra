@@ -145,6 +145,11 @@ reutilizables con `secrets: inherit`:
   (aprobación). Rollback: *Run workflow* con el sha de una imagen anterior.
 - Front (`eras-web`): `ng build --configuration aws` → artifact → [`deploy-site-aws.yml`](../.github/workflows/deploy-site-aws.yml)
   (`scripts/deploy-site.sh`). Rollback: re-ejecutar el job de deploy de un run anterior.
+- App Android (`eras-web`, job `android`): viaja con el sitio en `app/` (`ERAS.apk` con
+  `application/vnd.android.package-archive`, `web-<versión>.zip` y `app-update.json`, todos `no-cache`; se invalida
+  `/app/*`). Un build sin `app/` (APK sin firmar) deja publicada la app anterior. No hace falta `cdk deploy`: las
+  extensiones `.apk`/`.zip`/`.json` ya son archivos para `SpaRewrite`, y la app pide `app-update.json` con HTTP nativo
+  (sin CORS).
 
 ## Costos esperados (USD/mes)
 
