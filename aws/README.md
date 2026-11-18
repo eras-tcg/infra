@@ -141,8 +141,11 @@ reutilizables con `secrets: inherit`:
 
 - Backends (`DriveManager`, `ErasUsersService`): `test` → `build` (imagen `ghcr.io/eras-tcg/<servicio>:<sha>`) →
   [`deploy-aws.yml`](../.github/workflows/deploy-aws.yml) con `service`, `environment` (staging|production) e
-  `image_tag`: copia la imagen a ECR y corre `scripts/deploy-backend.sh`. develop → staging, main → production
-  (aprobación). Rollback: *Run workflow* con el sha de una imagen anterior.
+  `image_tag`: copia la imagen a ECR y corre `scripts/deploy-backend.sh`. main → production (aprobación); staging a
+  pedido con *Run workflow*. Rollback: *Run workflow* con el sha de una imagen anterior.
+  DriveManager (2026-11-17): los PR van directo a `main`; en el PR corren pruebas, motor e imagen en paralelo y, si
+  pasan, la imagen queda marcada `tree-<árbol git>`. El push a `main` con ese mismo árbol solo la promueve al sha y la
+  despliega (sin repetir pruebas); `main` exige ramas al día. De ~1 hora por despliegue a ~10 minutos.
 - Front (`eras-web`): `ng build --configuration aws` → artifact → [`deploy-site-aws.yml`](../.github/workflows/deploy-site-aws.yml)
   (`scripts/deploy-site.sh`). Rollback: re-ejecutar el job de deploy de un run anterior.
 - App Android (`eras-web`, job `android`): viaja con el sitio en `app/` (`ERAS.apk` con
