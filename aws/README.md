@@ -74,10 +74,8 @@ en el servidor.
 Variables que cambian respecto del VPS:
 - `SERVER_PORT` la fija compose (8081 / 8082): no hace falta en SSM.
 - `CORS_ALLOWED_ORIGINS`: el dominio público (y la URL `*.cloudfront.net` mientras se prueba).
-- `DRIVE_WEBHOOK_URL`: `https://<dominio>/api/drive/webhook` (llega por CloudFront).
-- `DRIVE_CATCH_UP_ON_START=true` en drive-manager (revisa Drive al despertar).
-- `NGROK_AUTH_TOKEN` **no** va en AWS: sin `DRIVE_WEBHOOK_URL` DriveManager abriría un túnel ngrok público hacia sí mismo.
-- `DRIVE_INSTANCE_ID`: `prod-drive-manager-1` / `staging-drive-manager-1` (id del canal de Drive y de `sync_state`; durante la convivencia con Contabo llevaba el sufijo `-aws`).
+- Google Drive ya no se usa (2026-11-19): las cartas e imágenes se cargan desde la web (editor de cartas, R2). DriveManager
+  no lee ninguna variable `DRIVE_*` ni `NGROK_*`.
 - `VERIFICATION_BASE_URL`: el dominio público.
 
 ## El servidor
