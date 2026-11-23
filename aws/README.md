@@ -148,9 +148,13 @@ reutilizables con `secrets: inherit`:
   (`scripts/deploy-site.sh`). Rollback: re-ejecutar el job de deploy de un run anterior.
 - App Android (`eras-web`, job `android`): viaja con el sitio en `app/` (`ERAS.apk` con
   `application/vnd.android.package-archive`, `web-<versión>.zip` y `app-update.json`, todos `no-cache`; se invalida
-  `/app/*`). Un build sin `app/` (APK sin firmar) deja publicada la app anterior. No hace falta `cdk deploy`: las
+  `/app/*`). Un build sin el APK (sin firmar) deja publicada la app anterior. No hace falta `cdk deploy`: las
   extensiones `.apk`/`.zip`/`.json` ya son archivos para `SpaRewrite`, y la app pide `app-update.json` con HTTP nativo
   (sin CORS).
+- App de Windows (`eras-web`, job `desktop`): viaja con el sitio en `app/` (`ERAS-Setup.exe` como descarga, con
+  `application/vnd.microsoft.portable-executable`, y `desktop.json`, que el sitio lee para ofrecerla). Cada app se
+  publica solo si el build la trae: si falta una, queda la publicada antes. `.exe` también es un archivo para
+  `SpaRewrite`.
 
 ## Costos esperados (USD/mes)
 
