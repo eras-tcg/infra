@@ -3,7 +3,8 @@
 # Uploads the Angular build (configuration "aws") to the environment's bucket and invalidates CloudFront.
 # Hashed files are cached for a year; index.html and the rest are revalidated on every visit.
 # The build may carry the apps under app/ (eras-web's CI): the Android app (ERAS.apk, web-<version>.zip,
-# app-update.json, when the APK is signed) and the Windows app (ERAS-Setup.exe, desktop.json). Each is published
+# app-update.json, when the APK is signed) and the Windows app (ERAS-Setup.exe, desktop.json, and latest.yml with the
+# installer's blockmap for the app's own updates). Each is published
 # only when the build carries it; one missing leaves the one published before as it is.
 # In CI the same steps run with the eras-ci credentials.
 set -euo pipefail
@@ -55,6 +56,12 @@ if [ -f "$dir/app/desktop.json" ]; then
   aws s3 cp "${PROFILE_ARGS[@]}" "$dir/app/ERAS-Setup.exe" "s3://$bucket/app/ERAS-Setup.exe" \
     --content-type 'application/vnd.microsoft.portable-executable' --cache-control 'no-cache' \
     --content-disposition 'attachment; filename="ERAS-Setup.exe"'
+  # What the installed app reads to update itself (electron-updater): the installer's blockmap, then latest.yml
+  # last, so it never names an installer not uploaded yet
+  if [ -f "$dir/app/latest.yml" ]; then
+    aws s3 cp "${PROFILE_ARGS[@]}" "$dir/app/ERAS-Setup.exe.blockmap" "s3://$bucket/app/ERAS-Setup.exe.blockmap"       --content-type 'application/octet-stream' --cache-control 'no-cache'
+    aws s3 cp "${PROFILE_ARGS[@]}" "$dir/app/latest.yml" "s3://$bucket/app/latest.yml"       --content-type 'text/yaml' --cache-control 'no-cache'
+  fi
   aws s3 cp "${PROFILE_ARGS[@]}" "$dir/app/desktop.json" "s3://$bucket/app/desktop.json" \
     --content-type 'application/json' --cache-control 'no-cache'
 fi
