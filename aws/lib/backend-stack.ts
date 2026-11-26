@@ -49,11 +49,13 @@ export class BackendStack extends cdk.Stack {
     });
 
     const sg = new ec2.SecurityGroup(this, 'ServerSg', { vpc, description: 'ERAS backend: only CloudFront', allowAllOutbound: true });
-    // The proxy's port; the CloudFront prefix list weighs ~55 rules per use.
+    // The proxy's port. The rule keeps its old range (80-8080, when staging listened on 8080): the CloudFront prefix
+    // list weighs ~55 rules per use, so a second rule cannot be added to replace it (the limit is 60). Nothing listens
+    // on 8080 any more, and only CloudFront reaches either port.
     const cloudFrontPrefixList = ec2.PrefixList.fromLookup(this, 'CloudFrontOrigins', {
       prefixListName: 'com.amazonaws.global.cloudfront.origin-facing',
     });
-    sg.addIngressRule(ec2.Peer.prefixList(cloudFrontPrefixList.prefixListId), ec2.Port.tcp(80), 'CloudFront to the proxy');
+    sg.addIngressRule(ec2.Peer.prefixList(cloudFrontPrefixList.prefixListId), ec2.Port.tcpRange(80, 8080), 'CloudFront to the proxy');
 
     // --- Images: CI pushes here, the instance pulls with its role (no registry token on the server).
     this.repositories = SERVICES.map(
