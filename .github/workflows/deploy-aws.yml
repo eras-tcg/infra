@@ -1,7 +1,7 @@
 # Reusable deploy of a backend service to AWS (see aws/README.md), called by DriveManager and ErasUsersService
 # with `secrets: inherit`. Runs on a GitHub runner: copies the image from GHCR to ECR, then runs eras-deploy on
 # the server through SSM (starts the server if it sleeps; healthcheck and automatic rollback on the server).
-# The GitHub Environment (staging/production) carries the approval rule.
+# The GitHub Environment (production) carries the approval rule. No staging since 2026-11-26.
 name: deploy-aws
 
 on:
@@ -12,7 +12,7 @@ on:
         required: true
         type: string
       environment:
-        description: staging | production
+        description: production (the only environment)
         required: true
         type: string
       image_tag:
@@ -29,7 +29,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: ${{ inputs.environment }}
-      url: ${{ inputs.environment == 'production' && 'https://www.erastcg.com' || 'https://staging.erastcg.com' }}
+      url: https://www.erastcg.com
     concurrency:
       group: deploy-aws-${{ inputs.service }}-${{ inputs.environment }}
       cancel-in-progress: false
@@ -75,8 +75,6 @@ jobs:
 
       - name: Deploy
         run: |
-          case "${{ inputs.environment }}" in
-            production) env_short=prod ;;
-            *)          env_short=staging ;;
-          esac
+          [ "${{ inputs.environment }}" = production ] || { echo "only production exists" >&2; exit 1; }
+          env_short=prod
           bash infra/aws/scripts/deploy-backend.sh "$env_short" "${{ inputs.service }}" "${{ steps.image.outputs.uri }}"

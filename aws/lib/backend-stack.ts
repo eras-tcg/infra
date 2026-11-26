@@ -20,11 +20,11 @@ export const BUNDLE_PARAM = '/eras/infra/bundle';
 export const BACKUP_BUCKET_PARAM = '/eras/infra/backup-bucket';
 export const BUDGET_EMAIL_PARAM = '/eras/infra/budget-email';
 export const SERVICES = ['drive-manager', 'users-service'] as const;
-export const ENVIRONMENTS = ['prod', 'staging'] as const;
+export const ENVIRONMENTS = ['prod'] as const;
 
 /**
- * The backend: one EC2 instance running both environments' Spring services in docker behind an nginx proxy
- * (prod on port 80, staging on 8080), reachable only from CloudFront. It powers itself off after 30 minutes
+ * The backend: one EC2 instance running production's Spring services in docker behind an nginx proxy
+ * (port 80), reachable only from CloudFront. It powers itself off after 30 minutes
  * without activity and the wake Lambda starts it again.
  */
 export class BackendStack extends cdk.Stack {
@@ -49,11 +49,11 @@ export class BackendStack extends cdk.Stack {
     });
 
     const sg = new ec2.SecurityGroup(this, 'ServerSg', { vpc, description: 'ERAS backend: only CloudFront', allowAllOutbound: true });
-    // One rule for both proxy ports (80 prod, 8080 staging): the CloudFront prefix list weighs ~55 rules per use.
+    // The proxy's port; the CloudFront prefix list weighs ~55 rules per use.
     const cloudFrontPrefixList = ec2.PrefixList.fromLookup(this, 'CloudFrontOrigins', {
       prefixListName: 'com.amazonaws.global.cloudfront.origin-facing',
     });
-    sg.addIngressRule(ec2.Peer.prefixList(cloudFrontPrefixList.prefixListId), ec2.Port.tcpRange(80, 8080), 'CloudFront to the proxy');
+    sg.addIngressRule(ec2.Peer.prefixList(cloudFrontPrefixList.prefixListId), ec2.Port.tcp(80), 'CloudFront to the proxy');
 
     // --- Images: CI pushes here, the instance pulls with its role (no registry token on the server).
     this.repositories = SERVICES.map(

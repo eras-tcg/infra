@@ -13,11 +13,12 @@ Infraestructura y despliegue de ERAS (erastcg.com) en AWS. Todo está documentad
 ## Flujo
 
 ```
-PR a develop/main ──► test + build (runner de GitHub)                   sin deploy
-push a develop    ──► build + push ghcr.io/eras-tcg/<svc>:<sha> ──► deploy staging (automático)
+PR a main         ──► test + build (runner de GitHub)                   sin deploy
 push a main       ──► build + push ──► deploy production (espera aprobación en GitHub)
-Run workflow      ──► redeploy de una imagen existente (rollback) a staging o production
+Run workflow      ──► redeploy de una imagen existente (rollback) a production
 ```
+
+Staging no existe desde el 2026-11-26 (decisión del dueño): solo producción.
 
 La aprobación de producción la da el GitHub Environment `production` de cada repo (revisor CapitanPio). Las ramas
 `develop`/`main` solo aceptan cambios por PR.

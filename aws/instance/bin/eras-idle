@@ -13,7 +13,7 @@ flock -n 9 || { echo "a deploy is running"; exit 0; }
 
 secret=$(origin_secret)
 answered=0
-for env in prod staging; do
+for env in prod; do
   body=$(curl -fsS -m 5 -H "X-Eras-Origin: $secret" "http://127.0.0.1:${PROXY_PORT[$env]}/api/system/activity" 2>/dev/null) || continue
   answered=1
   idle=$(jq -r '.idleSeconds // 0 | floor' <<<"$body")

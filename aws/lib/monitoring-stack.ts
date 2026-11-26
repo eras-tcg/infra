@@ -109,7 +109,7 @@ export class MonitoringStack extends cdk.Stack {
         period: cdk.Duration.minutes(5),
         label,
       });
-    const siteName = (site: SiteStack) => (site.node.id.endsWith('Prod') ? 'prod' : 'staging');
+    const siteName = (_site: SiteStack) => 'prod';
     const dashboard = new cloudwatch.Dashboard(this, 'Dashboard', {
       dashboardName: 'ERAS',
       defaultInterval: cdk.Duration.days(1),

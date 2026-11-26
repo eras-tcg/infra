@@ -20,12 +20,12 @@ services:
     image: nginx:1.27-alpine
     restart: unless-stopped
     networks: [eras]
-    ports: ["80:80", "8080:8080"]
+    ports: ["80:80"]
     volumes: ["$RUN/nginx:/etc/nginx/conf.d:ro"]
     logging: { driver: awslogs, options: { awslogs-region: $REGION, awslogs-group: /eras/prod, awslogs-stream: proxy } }
 YAML
 
-for env in prod staging; do
+for env in prod; do
   for svc in drive-manager users-service; do
     image=$(param "/eras/$env/$svc/image")
     if [ -z "$image" ] || [ "$image" = none ]; then

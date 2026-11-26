@@ -8,7 +8,7 @@ import { Construct } from 'constructs';
 import { BackendStack, ORIGIN_SECRET_PARAM } from './backend-stack.js';
 
 export interface SiteStackProps extends cdk.StackProps {
-  envName: 'prod' | 'staging';
+  envName: 'prod';
   backend: BackendStack;
   /** The proxy port of this environment on the server. */
   originPort: number;

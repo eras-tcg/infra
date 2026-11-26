@@ -1,5 +1,5 @@
 #!/bin/bash
-# deploy-site.sh <prod|staging> <dist/eras-web/browser>
+# deploy-site.sh prod <dist/eras-web/browser>
 # Uploads the Angular build (configuration "aws") to the environment's bucket and invalidates CloudFront.
 # Hashed files are cached for a year; index.html and the rest are revalidated on every visit.
 # The build may carry the apps under app/ (eras-web's CI): the Android app (ERAS.apk, web-<version>.zip,
@@ -13,11 +13,11 @@ PROFILE_ARGS=()
 [ -n "${AWS_ACCESS_KEY_ID:-}" ] || PROFILE_ARGS=(--profile "${AWS_PROFILE_ERAS:-eras}")
 REGION=us-east-2
 env=${1:-} dir=${2:-}
-if ! [[ "$env" =~ ^(prod|staging)$ && -d "$dir" ]]; then
-  echo "usage: deploy-site.sh <prod|staging> <build dir>" >&2
+if ! [[ "$env" =~ ^prod$ && -d "$dir" ]]; then
+  echo "usage: deploy-site.sh prod <build dir>" >&2
   exit 2
 fi
-stack=$([ "$env" = prod ] && echo ErasSiteProd || echo ErasSiteStaging)
+stack=ErasSiteProd
 output() {
   aws cloudformation describe-stacks "${PROFILE_ARGS[@]}" --region "$REGION" --stack-name "$stack" \
     --query "Stacks[0].Outputs[?OutputKey=='$1'].OutputValue" --output text
