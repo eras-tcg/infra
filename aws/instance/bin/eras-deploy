@@ -1,12 +1,12 @@
 #!/bin/bash
-# eras-deploy <prod|staging> <drive-manager|users-service> <image>
+# eras-deploy prod <drive-manager|users-service> <image>
 # Runs the image, waits for its healthcheck and goes back to the previous image when it does not pass.
 # CI calls it through SSM Run Command.
 set -euo pipefail
 source /opt/eras/current/bin/eras-common
 env=${1:-} svc=${2:-} image=${3:-}
-if ! [[ "$env" =~ ^(prod|staging)$ && "$svc" =~ ^(drive-manager|users-service)$ && -n "$image" ]]; then
-  echo "usage: eras-deploy <prod|staging> <drive-manager|users-service> <image>" >&2
+if ! [[ "$env" =~ ^prod$ && "$svc" =~ ^(drive-manager|users-service)$ && -n "$image" ]]; then
+  echo "usage: eras-deploy prod <drive-manager|users-service> <image>" >&2
   exit 2
 fi
 

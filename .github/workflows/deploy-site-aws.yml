@@ -1,6 +1,6 @@
 # Reusable deploy of the Angular site to AWS (S3 + CloudFront, see aws/README.md), called by eras-web with
 # `secrets: inherit` after a job of the same run uploaded the build (`ng build --configuration aws`) as an artifact.
-# The GitHub Environment (staging/production) carries the approval rule. Rollback: re-run this job in an
+# The GitHub Environment (production) carries the approval rule (no staging since 2026-11-26). Rollback: re-run this job in an
 # earlier run (its artifact is kept 90 days).
 name: deploy-site-aws
 
@@ -8,7 +8,7 @@ on:
   workflow_call:
     inputs:
       environment:
-        description: staging | production
+        description: production (the only environment)
         required: true
         type: string
       artifact:
@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: ${{ inputs.environment }}
-      url: ${{ inputs.environment == 'production' && 'https://www.erastcg.com' || 'https://staging.erastcg.com' }}
+      url: https://www.erastcg.com
     concurrency:
       group: deploy-site-aws-${{ inputs.environment }}
       cancel-in-progress: false
@@ -47,4 +47,6 @@ jobs:
           aws-region: us-east-2
 
       - name: Upload and invalidate
-        run: bash infra/aws/scripts/deploy-site.sh "${{ inputs.environment == 'production' && 'prod' || 'staging' }}" site
+        run: |
+          [ "${{ inputs.environment }}" = production ] || { echo "only production exists" >&2; exit 1; }
+          bash infra/aws/scripts/deploy-site.sh prod site

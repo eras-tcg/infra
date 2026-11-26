@@ -30,21 +30,13 @@ const prod = new SiteStack(app, 'ErasSiteProd', {
   // erastcg.com redirects to www.erastcg.com: one origin for the installable app and its offline data
   canonicalHost: certificateArn ? `www.${domain}` : undefined,
 });
-const staging = new SiteStack(app, 'ErasSiteStaging', {
-  env,
-  envName: 'staging',
-  backend,
-  originPort: 8080,
-  domainNames: certificateArn ? [`staging.${domain}`] : undefined,
-  certificateArn,
-});
+// No staging since 2026-11-26 (owner: only production): its site, DNS record and server containers are gone.
 
 new DnsStack(app, 'ErasDns', {
   env,
   zone: zone.zone,
   prod: prod.distribution,
-  staging: staging.distribution,
 });
 
-new CiStack(app, 'ErasCi', { env, backend, sites: [prod, staging] });
-new MonitoringStack(app, 'ErasMonitoring', { env, backend, sites: [prod, staging] });
+new CiStack(app, 'ErasCi', { env, backend, sites: [prod] });
+new MonitoringStack(app, 'ErasMonitoring', { env, backend, sites: [prod] });

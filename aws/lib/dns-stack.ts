@@ -7,7 +7,6 @@ import { Construct } from 'constructs';
 export interface DnsStackProps extends cdk.StackProps {
   zone: route53.IHostedZone;
   prod: cloudfront.IDistribution;
-  staging: cloudfront.IDistribution;
 }
 
 /** The domain's records: every host is an alias of its environment's CloudFront distribution. */
@@ -24,6 +23,5 @@ export class DnsStack extends cdk.Stack {
 
     point('Apex', undefined, props.prod);
     point('Www', 'www', props.prod);
-    point('Staging', 'staging', props.staging);
   }
 }

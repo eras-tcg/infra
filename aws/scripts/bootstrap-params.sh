@@ -1,6 +1,6 @@
 #!/bin/bash
 # Once, before the first deploy: the random secret CloudFront sends to the server and the wake function.
-# Rotating it: run with --rotate, then `cdk deploy ErasBackend ErasSiteProd ErasSiteStaging` and restart eras.service.
+# Rotating it: run with --rotate, then `cdk deploy ErasBackend ErasSiteProd` and restart eras.service.
 set -euo pipefail
 export MSYS_NO_PATHCONV=1   # Git Bash: keep /eras/... and /etc/... as they are for aws.exe and ssh.exe
 PROFILE=${AWS_PROFILE_ERAS:-eras}

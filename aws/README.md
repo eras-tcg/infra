@@ -4,10 +4,10 @@ Infraestructura de erastcg.com en AWS (proyecto `211078959523`, Región **us-eas
 Reemplazó al VPS de Contabo (apagado y cancelado el 2026-10-30). MongoDB Atlas, Cloudflare R2 (imágenes) y Google Drive (API) no cambian.
 
 ```
-Usuario ──► CloudFront  erastcg.com / staging.erastcg.com
+Usuario ──► CloudFront  erastcg.com (solo producción: staging se apagó el 2026-11-26)
               ├─ /*           → S3 (build Angular "aws", privado con OAC; rutas sin extensión → index.html)
               ├─ /wake        → Lambda Wake (StartInstances; responde solo con el header secreto)
-              └─ /api/*, /ws  → EC2 :80 (prod) / :8080 (staging), header X-Eras-Origin obligatorio
+              └─ /api/*, /ws  → EC2 :80, header X-Eras-Origin obligatorio
                                  nginx ─► {env}-drive-manager :8081   (/api/*, /ws)
                                        └► {env}-users-service :8082   (/api/auth|users|roles|permissions)
 EC2 (t3a.small, Amazon Linux 2023, docker) ─► Atlas · R2 · Drive API · ECR
@@ -19,9 +19,9 @@ Se apaga solo tras 30 min sin actividad (eras-idle); la Lambda lo enciende.
 | Stack | Contenido |
 |---|---|
 | `ErasZone` | Zona pública Route 53 `erastcg.com` (protegida contra borrado) |
-| `ErasBackend` | VPC (1 subred pública, sin NAT), security group solo CloudFront, EC2 + IP elástica, ECR `eras/drive-manager` y `eras/users-service`, logs `/eras/prod` y `/eras/staging` (14 días), bucket de backups de Mongo (30 días), Lambda Wake, presupuesto mensual con aviso por correo (destinatario en SSM `/eras/infra/budget-email`) |
-| `ErasSiteProd` / `ErasSiteStaging` | Bucket del sitio + distribución CloudFront |
-| `ErasDns` | Registros A/AAAA alias de `erastcg.com`, `www` y `staging` a su distribución de CloudFront |
+| `ErasBackend` | VPC (1 subred pública, sin NAT), security group solo CloudFront, EC2 + IP elástica, ECR `eras/drive-manager` y `eras/users-service`, logs `/eras/prod` (14 días), bucket de backups de Mongo (30 días), Lambda Wake, presupuesto mensual con aviso por correo (destinatario en SSM `/eras/infra/budget-email`) |
+| `ErasSiteProd` | Bucket del sitio + distribución CloudFront |
+| `ErasDns` | Registros A/AAAA alias de `erastcg.com` y `www` a su distribución de CloudFront |
 | `ErasCi` | Usuario IAM `eras-ci` con la política mínima de despliegue |
 | `ErasMonitoring` | Dashboard CloudWatch `ERAS`, alarmas con aviso por correo (tópico SNS `eras-alerts`, mismo destinatario que el presupuesto) |
 
@@ -47,14 +47,14 @@ npx cdk deploy <Stack> --profile eras   # certificateArn está en cdk.json
 
 1. `npx cdk bootstrap aws://211078959523/us-east-2 --profile eras` (una vez).
 2. `scripts/bootstrap-params.sh` → secreto `/eras/infra/origin-secret`.
-3. `npx cdk deploy ErasZone ErasBackend ErasSiteProd ErasSiteStaging ErasDns ErasCi --profile eras`.
+3. `npx cdk deploy ErasZone ErasBackend ErasSiteProd ErasDns ErasCi --profile eras`.
 4. **Atlas**: agregar la IP de salida `ErasBackend.PublicIp` a *Network Access*.
-5. **Variables de cada servicio** → SSM: `scripts/env-to-ssm.sh <prod|staging> <servicio> <archivo.env>`. Ajustar los que nombran el dominio o la máquina (ver abajo).
+5. **Variables de cada servicio** → SSM: `scripts/env-to-ssm.sh prod <servicio> <archivo.env>`. Ajustar los que nombran el dominio o la máquina (ver abajo).
 6. **Imágenes** → ECR y primer deploy: `scripts/deploy-backend.sh <env> <servicio> <uri:tag>`.
 7. **Front**: `ng build --configuration aws` y `scripts/deploy-site.sh <env> dist/eras-web/browser`.
 8. Probar en las URLs `https://dxxxx.cloudfront.net` (salidas `Url` de los stacks del sitio).
 9. **DNS**: en DonWeb cambiar los nameservers a los de `ErasZone.NameServers`. Como la zona copia DonWeb, nada cambia todavía.
-10. `scripts/request-certificate.sh` → cuando el estado sea `ISSUED`: `npx cdk deploy ErasSiteProd ErasSiteStaging -c certificateArn=<arn>`.
+10. `scripts/request-certificate.sh` → cuando el estado sea `ISSUED`: `npx cdk deploy ErasSiteProd -c certificateArn=<arn>`.
 11. **Corte** (hecho el 2026-10-30): los registros de `ErasDns` pasaron de la IP del VPS a CloudFront, primero staging y luego prod.
 12. Contabo apagado y cancelado; su IP quitada de Atlas.
 
@@ -85,8 +85,8 @@ Variables que cambian respecto del VPS:
 - `eras.service` (al arrancar): `eras-sync` + `eras-up`. `eras-idle.timer`: cada 5 min; apaga si
   `/api/system/activity` de todos los entornos dice más de 1800 s sin uso y ninguna sala con jugadores
   (si ningún entorno responde ese endpoint, **no apaga**: las imágenes sin él quedan siempre encendidas). No apaga durante un `eras-deploy`.
-- Logs: CloudWatch `/eras/prod` y `/eras/staging`, un stream por servicio (`proxy` en `/eras/prod`).
-- Memoria (t3a.small, 2 GB de RAM): tope por servicio prod 1000 MB y staging 500 MB, más 2 GB de swap; en reposo se usan ~1,1 GB.
+- Logs: CloudWatch `/eras/prod`, un stream por servicio (`proxy` en `/eras/prod`).
+- Memoria (t3a.small, 2 GB de RAM): tope por servicio 1000 MB, más 2 GB de swap; en reposo se usan ~1,1 GB.
 
 ## Backups de MongoDB
 
@@ -138,9 +138,9 @@ Credenciales: secrets de la organización `eras-tcg` `AWS_ACCESS_KEY_ID` / `AWS_
 reutilizables con `secrets: inherit`:
 
 - Backends (`DriveManager`, `ErasUsersService`): `test` → `build` (imagen `ghcr.io/eras-tcg/<servicio>:<sha>`) →
-  [`deploy-aws.yml`](../.github/workflows/deploy-aws.yml) con `service`, `environment` (staging|production) e
-  `image_tag`: copia la imagen a ECR y corre `scripts/deploy-backend.sh`. main → production (aprobación); staging a
-  pedido con *Run workflow*. Rollback: *Run workflow* con el sha de una imagen anterior.
+  [`deploy-aws.yml`](../.github/workflows/deploy-aws.yml) con `service`, `environment` (production) e
+  `image_tag`: copia la imagen a ECR y corre `scripts/deploy-backend.sh`. main → production (aprobación); no hay
+  staging. Rollback: *Run workflow* con el sha de una imagen anterior.
   DriveManager (2026-11-17): los PR van directo a `main`; en el PR corren pruebas, motor e imagen en paralelo y, si
   pasan, la imagen queda marcada `tree-<árbol git>`. El push a `main` con ese mismo árbol solo la promueve al sha y la
   despliega (sin repetir pruebas); `main` exige ramas al día. De ~1 hora por despliegue a ~10 minutos.
